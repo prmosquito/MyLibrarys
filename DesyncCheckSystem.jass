@@ -1,0 +1,415 @@
+// ==============================================
+library DesyncCheckSystem uses optional debugs/* DesyncCheckSystem ver 1.0.0 - JoyWoon */
+// ==============================================
+
+    /*************************************************************************************
+    *
+    *   使用非常简单，在触发器编辑器中新建<新自定义脚本>，复制这里所有内容，并粘贴。即可。
+    *   不想使用该监测，直接在触发器编辑器禁用本库即可。
+    *
+    *************************************************************************************/
+
+    /*************************************************************************************
+    *
+    *   信息输出函数，您可以通过修改以下函数达到自己想要达到的信息监测效果：
+    *
+    *************************************************************************************/
+    private function Report takes string message returns nothing
+        static if LIBRARY_debugs then
+            call Debug(message)
+        else
+            static if udg_TestMode then
+                call DisplayTextToPlayer( Player(0), 0, 0,"|cff32cd32DEBUG:|r"+message)
+            else
+                debug call BJDebugMsg("|cff32cd32DEBUG:|r"+message)
+            endif
+        endif
+    endfunction
+
+/*
+本库会对以下函数进行检测，并记录调用次数，以作为产生异步可能性的参考：
+SmartCameraPanBJ 该bj函数会直接导致异步
+GetLocalPlayer 该函数的不正确使用会导致异步
+GetLocationZ 该函数会由于不同玩家所获取的高度值不同而产生异步，产生的原因包括地形的高度变化、震荡波、战争践踏等技能产生的高度变化、1.32高清版和经典版的桥梁高度差异等
+GetPlayerSlotState 在地图初始化时，该函数的返回值每个玩家都不会不同，因此也会产生异步
+GetPlayerController 在地图初始化时，该函数的返回值每个玩家都不会不同，因此也会产生异步
+GetDestructableName 不同版本的魔兽争霸3名称不同，因此会产生异步
+GetSoundDuration 原因同上类似
+GetSoundFileDuration 原因同上类似
+GetCameraBoundMinX 每个玩家的摄像机都是不同的，因此会产生异步
+GetCameraBoundMinY 同上
+GetCameraBoundMaxX 同上
+GetCameraBoundMaxY 同上
+GetCameraField 同上
+GetCameraTargetPositionX 同上
+GetCameraTargetPositionY 同上
+GetCameraTargetPositionZ 同上
+GetCameraTargetPositionLoc 同上
+GetCameraEyePositionX 同上
+GetCameraEyePositionY 同上
+GetCameraEyePositionZ 同上
+GetCameraEyePositionLoc 同上
+GetObjectName 不同版本的魔兽争霸3名称不同，因此会产生异步
+GetLocalizedString 同上
+GetLocalizedHotkey 原因同上类似
+GetItemName 同上
+GetUnitName 同上
+IsMultiboardMinimized 
+BlzGetLocalUnitZ 高度差异异步
+BlzGetUnitZ 高度差异异步
+BlzGetItemDescription 不同版本的魔兽争霸3名称不同，因此会产生异步
+BlzGetItemTooltip 不同版本的魔兽争霸3名称不同，因此会产生异步
+BlzGetItemExtendedTooltip 不同版本的魔兽争霸3名称不同，因此会产生异步
+BlzGetLocalSpecialEffectX 本地异步
+BlzGetLocalSpecialEffectY 本地异步
+BlzGetLocalSpecialEffectZ 本地异步
+ */
+
+    globals
+        /*************************************************************************************
+        *
+        *   函数检测开关 true/false 开启/关闭 ，您可以在下面进行设置：
+        *
+        *************************************************************************************/
+        public boolean SmartCameraPanBJSwitch = true
+        public boolean GetLocalPlayerSwitch = true
+        public boolean GetLocationZSwitch = true
+        public boolean GetPlayerSlotStateSwitch = false //true
+        public boolean GetPlayerControllerSwitch = false //true
+        public boolean GetDestructableNameSwitch = true
+        public boolean GetSoundDurationSwitch = true
+        public boolean GetSoundFileDurationSwitch = true
+        public boolean GetCameraBoundMinXSwitch = true
+        public boolean GetCameraBoundMinYSwitch = true
+        public boolean GetCameraBoundMaxXSwitch = true
+        public boolean GetCameraBoundMaxYSwitch = true
+        public boolean GetCameraFieldSwitch = true
+        public boolean GetCameraTargetPositionXSwitch = true
+        public boolean GetCameraTargetPositionYSwitch = true
+        public boolean GetCameraTargetPositionZSwitch = true
+        public boolean GetCameraTargetPositionLocSwitch = true
+        public boolean GetCameraEyePositionXSwitch = true
+        public boolean GetCameraEyePositionYSwitch = true
+        public boolean GetCameraEyePositionZSwitch = true
+        public boolean GetCameraEyePositionLocSwitch = true
+        public boolean GetObjectNameSwitch = true
+        public boolean GetLocalizedStringSwitch = true
+        public boolean GetLocalizedHotkeySwitch = true
+        public boolean GetItemNameSwitch = true
+        public boolean GetUnitNameSwitch = true
+        public boolean IsMultiboardMinimizedSwitch = true
+        public boolean BlzGetLocalUnitZSwitch = true
+        public boolean BlzGetUnitZSwitch = true
+        public boolean BlzGetItemDescriptionSwitch = true
+        public boolean BlzGetItemTooltipSwitch = true
+        public boolean BlzGetItemExtendedTooltipSwitch = true
+        public boolean BlzGetLocalSpecialEffectXSwitch = true
+        public boolean BlzGetLocalSpecialEffectYSwitch = true
+        public boolean BlzGetLocalSpecialEffectZSwitch = true
+
+        public integer SmartCameraPanBJExecCount = 0
+        public integer GetLocalPlayerExecCount = 0
+        public integer GetLocationZExecCount = 0
+        public integer GetPlayerSlotStateExecCount = 0
+        public integer GetPlayerControllerExecCount = 0
+        public integer GetDestructableNameExecCount = 0
+        public integer GetSoundDurationExecCount = 0
+        public integer GetSoundFileDurationExecCount = 0
+        public integer GetCameraBoundMinXExecCount = 0
+        public integer GetCameraBoundMinYExecCount = 0
+        public integer GetCameraBoundMaxXExecCount = 0
+        public integer GetCameraBoundMaxYExecCount = 0
+        public integer GetCameraFieldExecCount = 0
+        public integer GetCameraTargetPositionXExecCount = 0
+        public integer GetCameraTargetPositionYExecCount = 0
+        public integer GetCameraTargetPositionZExecCount = 0
+        public integer GetCameraTargetPositionLocExecCount = 0
+        public integer GetCameraEyePositionXExecCount = 0
+        public integer GetCameraEyePositionYExecCount = 0
+        public integer GetCameraEyePositionZExecCount = 0
+        public integer GetCameraEyePositionLocExecCount = 0
+        public integer GetObjectNameExecCount = 0
+        public integer GetLocalizedStringExecCount = 0
+        public integer GetLocalizedHotkeyExecCount = 0
+        public integer GetItemNameExecCount = 0
+        public integer GetUnitNameExecCount = 0
+        public integer IsMultiboardMinimizedExecCount = 0
+        public integer BlzGetLocalUnitZExecCount = 0
+        public integer BlzGetUnitZExecCount = 0
+        public integer BlzGetItemDescriptionExecCount = 0
+        public integer BlzGetItemTooltipExecCount = 0
+        public integer BlzGetItemExtendedTooltipExecCount = 0
+        public integer BlzGetLocalSpecialEffectXExecCount = 0
+        public integer BlzGetLocalSpecialEffectYExecCount = 0
+        public integer BlzGetLocalSpecialEffectZExecCount = 0
+
+    endglobals
+
+
+
+/*
+------------------------------------
+本地玩家函数
+------------------------------------
+*/
+    public function onGetLocalPlayer takes nothing returns nothing
+        if GetLocalPlayerSwitch then
+        set GetLocalPlayerExecCount = GetLocalPlayerExecCount + 1
+        call Report("GetLocalPlayer call number "+I2S(GetLocalPlayerExecCount))
+        endif
+    endfunction
+    hook GetLocalPlayer onGetLocalPlayer
+    
+/*
+------------------------------------
+区域高度函数
+------------------------------------
+*/
+    public function onGetLocationZ takes location whichLocation returns nothing
+        if GetLocationZSwitch then
+            set GetLocationZExecCount = GetLocationZExecCount + 1
+            call Report("GetLocationZ call number "+I2S(GetLocationZExecCount))
+        endif
+    endfunction
+    hook GetLocationZ onGetLocationZ
+
+
+/*
+------------------------------------
+单位高度函数
+------------------------------------
+*/
+    //! textmacro UnitFunctionsName takes UFN
+    public function on$UFN$ takes unit whichUnit returns real
+        if $UFN$Switch then
+            set $UFN$ExecCount = $UFN$ExecCount + 1
+            call Report("$UFN$ExecCount call number "+I2S($UFN$ExecCount))
+        endif
+        return .0
+    endfunction
+    hook $UFN$ on$UFN$
+    //! endtextmacro
+    //! runtextmacro UnitFunctionsName("BlzGetLocalUnitZ")
+    //! runtextmacro UnitFunctionsName("BlzGetUnitZ")
+
+/*
+------------------------------------
+获取名称函数
+------------------------------------
+*/
+    //单位名称
+    public function onGetUnitName takes unit whichUnit returns string
+        if GetUnitNameSwitch then
+            set GetUnitNameExecCount = GetUnitNameExecCount + 1
+            call Report("GetUnitNameExecCount call number "+I2S(GetUnitNameExecCount))
+        endif
+        return ""
+    endfunction
+    hook GetUnitName onGetUnitName
+
+    //目标名称
+    public function onGetObjectName takes integer objectId returns string
+        if GetObjectNameSwitch then
+            set GetObjectNameExecCount = GetObjectNameExecCount + 1
+            call Report("GetObjectNameExecCount call number "+I2S(GetObjectNameExecCount))
+        endif
+        return ""
+    endfunction
+    hook GetObjectName onGetObjectName
+
+    //破坏物名称
+    public function onGetDestructableName takes destructable d returns string
+        if GetDestructableNameSwitch then
+            set GetDestructableNameExecCount = GetDestructableNameExecCount + 1
+            call Report("GetDestructableName call number "+I2S(GetDestructableNameExecCount))
+        endif
+        return ""
+    endfunction
+    hook GetDestructableName onGetDestructableName
+
+
+/*
+------------------------------------
+玩家状态函数
+------------------------------------
+*/
+    public function onGetPlayerSlotState takes player whichPlayer returns playerslotstate
+        if GetPlayerSlotStateSwitch then
+            set GetPlayerSlotStateExecCount = GetPlayerSlotStateExecCount + 1
+            call Report("GetPlayerSlotState call number "+I2S(GetPlayerSlotStateExecCount))
+        endif
+        return PLAYER_SLOT_STATE_EMPTY
+    endfunction
+    hook GetPlayerSlotState onGetPlayerSlotState
+
+
+ 
+    public function onGetPlayerController takes player whichPlayer returns mapcontrol
+        if GetPlayerControllerSwitch then
+            set GetPlayerControllerExecCount = GetPlayerControllerExecCount + 1
+            call Report("GetPlayerController call number "+I2S(GetPlayerControllerExecCount))
+        endif
+        return MAP_CONTROL_NONE
+    endfunction
+    hook GetPlayerController onGetPlayerController
+
+
+
+/*
+------------------------------------
+声音函数
+------------------------------------
+*/
+
+    public function onGetSoundDuration takes sound s returns real
+        if GetSoundDurationSwitch then
+            set GetSoundDurationExecCount = GetSoundDurationExecCount + 1
+            call Report("GetSoundDuration call number "+I2S(GetSoundDurationExecCount))
+        endif
+        return .0
+    endfunction
+    hook GetSoundDuration onGetSoundDuration
+ 
+    public function onGetSoundFileDuration takes string s returns real
+        if GetSoundFileDurationSwitch then
+            set GetSoundFileDurationExecCount = GetSoundFileDurationExecCount + 1
+            call Report("GetSoundFileDuration call number "+I2S(GetSoundFileDurationExecCount))
+        endif
+        return .0
+    endfunction
+    hook GetSoundFileDuration onGetSoundFileDuration
+
+/*
+------------------------------------
+镜头函数
+------------------------------------
+*/
+    public function onSmartCameraPanBJ takes player whichPlayer, location loc, real duration returns nothing
+        if SmartCameraPanBJSwitch then
+            set SmartCameraPanBJExecCount = SmartCameraPanBJExecCount + 1
+            call Report("SmartCameraPanBJ call number "+I2S(SmartCameraPanBJExecCount))
+        endif
+    endfunction
+    hook SmartCameraPanBJ onSmartCameraPanBJ
+
+    //! textmacro CameraFunctionsName1 takes CFN
+    public function on$CFN$ takes nothing returns real
+        if $CFN$Switch then
+            set $CFN$ExecCount = $CFN$ExecCount + 1
+            call Report("$CFN$ExecCount call number "+I2S($CFN$ExecCount))
+        endif
+        return .0
+    endfunction
+    hook $CFN$ on$CFN$
+    //! endtextmacro
+    //! runtextmacro CameraFunctionsName1("GetCameraBoundMinX")
+    //! runtextmacro CameraFunctionsName1("GetCameraBoundMinY")
+    //! runtextmacro CameraFunctionsName1("GetCameraBoundMaxX")
+    //! runtextmacro CameraFunctionsName1("GetCameraBoundMaxY")
+    //! runtextmacro CameraFunctionsName1("GetCameraTargetPositionX")
+    //! runtextmacro CameraFunctionsName1("GetCameraTargetPositionY")
+    //! runtextmacro CameraFunctionsName1("GetCameraTargetPositionZ")
+    //! runtextmacro CameraFunctionsName1("GetCameraEyePositionX")
+    //! runtextmacro CameraFunctionsName1("GetCameraEyePositionY")
+    //! runtextmacro CameraFunctionsName1("GetCameraEyePositionZ")
+
+    //! textmacro CameraFunctionsName2 takes CFN
+    public function on$CFN$ takes nothing returns location
+        if $CFN$Switch then
+            set $CFN$ExecCount = $CFN$ExecCount + 1
+            call Report("$CFN$ExecCount call number "+I2S($CFN$ExecCount))
+        endif
+        return null
+    endfunction
+    hook $CFN$ on$CFN$
+    //! endtextmacro
+    //! runtextmacro CameraFunctionsName2("GetCameraEyePositionLoc")
+    //! runtextmacro CameraFunctionsName2("GetCameraTargetPositionLoc")
+
+    public function onGetCameraField takes camerafield whichField returns real
+        if GetCameraFieldSwitch then
+            set GetCameraFieldExecCount = GetCameraFieldExecCount + 1
+            call Report("GetCameraFieldExecCount call number "+I2S(GetCameraFieldExecCount))
+        endif
+        return .0
+    endfunction
+    hook GetCameraField onGetCameraField
+
+/*
+------------------------------------
+特效函数
+------------------------------------
+*/
+    //! textmacro EffectFunctionsName takes EFN
+    public function on$EFN$ takes effect whichEffect returns real
+        if $EFN$Switch then
+            set $EFN$ExecCount = $EFN$ExecCount + 1
+            call Report("$EFN$ExecCount call number "+I2S($EFN$ExecCount))
+        endif
+        return .0
+    endfunction
+    hook $EFN$ on$EFN$
+    //! endtextmacro
+    //! runtextmacro EffectFunctionsName("BlzGetLocalSpecialEffectX")
+    //! runtextmacro EffectFunctionsName("BlzGetLocalSpecialEffectY")
+    //! runtextmacro EffectFunctionsName("BlzGetLocalSpecialEffectZ")
+
+/*
+------------------------------------
+物品函数
+------------------------------------
+*/
+    //! textmacro ItemFunctionsName takes IFN
+    public function on$IFN$ takes item whichItem returns string
+        if $IFN$Switch then
+            set $IFN$ExecCount = $IFN$ExecCount + 1
+            call Report("$IFN$ExecCount call number "+I2S($IFN$ExecCount))
+        endif
+        return ""
+    endfunction
+    hook $IFN$ on$IFN$
+    //! endtextmacro
+    //! runtextmacro ItemFunctionsName("GetItemName")
+    //! runtextmacro ItemFunctionsName("BlzGetItemDescription")
+    //! runtextmacro ItemFunctionsName("BlzGetItemTooltip")
+    //! runtextmacro ItemFunctionsName("BlzGetItemExtendedTooltip")
+
+
+/*
+------------------------------------
+获取本地字符串
+------------------------------------
+*/
+    public function onGetLocalizedString takes string source returns string
+        if GetLocalizedStringSwitch then
+            set GetLocalizedStringExecCount = GetLocalizedStringExecCount + 1
+            call Report("GetLocalizedStringExecCount call number "+I2S(GetLocalizedStringExecCount))
+        endif
+        return ""
+    endfunction
+    hook GetLocalizedString onGetLocalizedString
+
+    public function onGetLocalizedHotkey takes string source returns integer
+        if GetLocalizedHotkeySwitch then
+            set GetLocalizedHotkeyExecCount = GetLocalizedHotkeyExecCount + 1
+            call Report("GetLocalizedHotkeyExecCount call number "+I2S(GetLocalizedHotkeyExecCount))
+        endif
+        return 0
+    endfunction
+    hook GetLocalizedHotkey onGetLocalizedHotkey
+
+/*
+------------------------------------
+多面板
+------------------------------------
+*/
+    public function onIsMultiboardMinimized takes multiboard lb returns boolean
+        if IsMultiboardMinimizedSwitch then
+            set IsMultiboardMinimizedExecCount = IsMultiboardMinimizedExecCount + 1
+            call Report("IsMultiboardMinimizedExecCount call number "+I2S(IsMultiboardMinimizedExecCount))
+        endif
+        return false
+    endfunction
+    hook IsMultiboardMinimized onIsMultiboardMinimized
+
+endlibrary
